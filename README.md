@@ -1,20 +1,11 @@
-<p>
-<h1 align="center">merk</h1>
-<p align="center"><img src="./merk.png" /></p>
-<p align="center"><i>High-performance Merkle key/value store</i></p>
+![](./merk.png)
+# merk
 
-<p align="center">
-<a href="https://travis-ci.org/nomic-io/merk">
-    <img src="https://travis-ci.org/nomic-io/merk.svg?branch=master" alt="Build Status">
-</a>
-<a href="https://crates.io/crates/merk">
-    <img alt="Crate" src="https://img.shields.io/crates/v/merk.svg">
-</a>
-<a href="https://docs.rs/merk">
-    <img alt="API" src="https://docs.rs/merk/badge.svg">
-</a>
-</p>
-</p>
+*High-performance Merkle key/value store*
+
+[![Build Status](https://travis-ci.org/nomic-io/merk.svg?branch=master)](https://travis-ci.org/nomic-io/merk)
+[![Crate](https://img.shields.io/crates/v/merk.svg)](https://crates.io/crates/merk)
+[![API](https://docs.rs/merk/badge.svg)](https://docs.rs/merk)
 
 Merk is a crypto key/value store - more specifically, it's a Merkle AVL tree built on top of RocksDB (Facebook's fork of LevelDB).
 
