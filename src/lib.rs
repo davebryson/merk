@@ -16,8 +16,9 @@ extern crate serde;
 mod error;
 mod merk;
 mod node;
-mod sparse_tree;
 pub mod proof;
+mod sparse_tree;
+pub mod store;
 
 // collect all internal module exports and re-export as root module
 pub use crate::error::*;

@@ -3,47 +3,46 @@ use std::path::{Path, PathBuf};
 
 use crate::error::Result;
 use crate::node::{Link, Node};
-use crate::sparse_tree::{SparseTree, TreeBatch};
 use crate::proof;
+use crate::sparse_tree::{SparseTree, TreeBatch};
+use crate::store::Database;
 
 const ROOT_KEY_KEY: [u8; 6] = *b"\00root";
 
 /// A handle to a Merkle key/value store backed by RocksDB.
-pub struct Merk {
+pub struct Merk<'a> {
     pub tree: Option<Box<SparseTree>>,
-    db: rocksdb::DB,
-    path: PathBuf,
+    db: &'a mut dyn Database,
 }
 
-impl Merk {
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Merk> {
-        let db_opts = default_db_opts();
-        let mut path_buf = PathBuf::new();
-        path_buf.push(path);
-        let db = rocksdb::DB::open(&db_opts, &path_buf)?;
-
-        // try to load root node
-        let tree = match db.get_pinned(ROOT_KEY_KEY)? {
+impl<'a> Merk<'a> {
+    pub fn new(db: &'a mut dyn Database) -> Result<Merk> {
+        let tree = match db.get(&ROOT_KEY_KEY) {
             Some(root_key) => {
-                let root_node = get_node(&db, &root_key)?;
+                let root_node = get_node(db, &root_key)?;
                 Some(Box::new(SparseTree::new(root_node)))
-            },
-            None => None
+            }
+            None => None,
         };
+        Ok(Merk { tree, db })
+    }
 
-        Ok(Merk { tree, db, path: path_buf })
+    pub fn db(&self) -> &dyn Database {
+        self.db
+    }
+
+    pub fn db_mut(&mut self) -> &mut dyn Database {
+        self.db
     }
 
     pub fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
-        let node = get_node(&self.db, key)?;
+        let node = get_node(self.db(), key)?;
         Ok(node.value)
     }
 
     pub fn apply(&mut self, batch: &mut TreeBatch) -> Result<()> {
-        let db = &self.db;
-        let mut get_node = |link: &Link| -> Result<Node> {
-            get_node(db, &link.key)
-        };
+        let db = &*self.db;
+        let mut get_node = |link: &Link| -> Result<Node> { get_node(db, &link.key) };
 
         // sort batch and ensure there are no duplicate keys
         let mut duplicate = false;
@@ -59,131 +58,65 @@ impl Merk {
         }
 
         // apply tree operations, setting resulting root node in self.tree
-        SparseTree::apply(&mut self.tree, &mut get_node, batch)?;
+        SparseTree::apply(&mut self.tree, &get_node, batch)?;
 
         // commit changes to db
         self.commit()
     }
 
     pub fn apply_unchecked(&mut self, batch: &TreeBatch) -> Result<()> {
-        let db = &self.db;
-        let mut get_node = |link: &Link| -> Result<Node> {
-            get_node(db, &link.key)
-        };
+        let db = &*self.db;
+        let mut get_node = |link: &Link| -> Result<Node> { get_node(db, &link.key) };
 
         // apply tree operations, setting resulting root node in self.tree
-        SparseTree::apply(&mut self.tree, &mut get_node, batch)?;
+        SparseTree::apply(&mut self.tree, &get_node, batch)?;
 
         // commit changes to db
         self.commit()
     }
 
-    pub fn destroy(self) -> Result<()> {
-        let opts = default_db_opts();
-        drop(self.db);
-        rocksdb::DB::destroy(&opts, &self.path)?;
-        Ok(())
-    }
-
     fn commit(&mut self) -> Result<()> {
-        let mut batch = rocksdb::WriteBatch::default();
-
         if let Some(tree) = &mut self.tree {
-            // get nodes to flush to disk
             let modified = tree.modified()?;
-            for (key, value) in modified {
-                batch.put(key, value)?;
-            }
-
-            // update pointer to root node
-            batch.put(ROOT_KEY_KEY, &tree.key)?;
+            self.db.write_batch(modified)?;
+            self.db.put(&ROOT_KEY_KEY, tree.key.clone())?;
         } else {
-            // empty tree, delete pointer to root
-            batch.delete(ROOT_KEY_KEY)?;
+            self.db.delete(&ROOT_KEY_KEY)?;
         }
-
-        // write to db
-        let mut opts = rocksdb::WriteOptions::default();
-        opts.set_sync(false);
-        self.db.write_opt(batch, &opts)?;
-
         if let Some(tree) = &mut self.tree {
-            // clear tree so it only contains the root node
-            // TODO: strategies for persisting nodes in memory
             tree.prune();
         }
-
         Ok(())
     }
 
-    pub fn map_range<F: FnMut(Node)>(
-        &self,
-        start: &[u8],
-        end: &[u8],
-        f: &mut F
-    ) -> Result<()> {
-        let iter = self.db.iterator(
-            rocksdb::IteratorMode::From(
-                start,
-                rocksdb::Direction::Forward
-            )
-        );
-
-        for (key, value) in iter {
+    pub fn map_range<F: FnMut(Node)>(&self, start: &[u8], end: &[u8], f: &mut F) -> Result<()> {
+        for (key, value) in self.db.iter(start, end) {
             let node = Node::decode(&key, &value)?;
             f(node);
-
-            if key[..] >= end[..] {
-                break;
-            }
         }
-
         Ok(())
     }
 
-    pub fn map_branch<F: FnMut(&Node)>(
-        &mut self,
-        key: &[u8],
-        f: &mut F
-    ) -> Result<()> {
+    pub fn map_branch<F: FnMut(&Node)>(&mut self, key: &[u8], f: &mut F) -> Result<()> {
         let tree_mut = self.tree.as_mut().map(|b| b.as_mut());
 
-        let db = &self.db;
-        let mut get_node = |link: &Link| -> Result<Node> {
-            get_node(db, &link.key)
-        };
+        let db = &*self.db;
+        let mut get_node = |link: &Link| -> Result<Node> { get_node(db, &link.key) };
 
         SparseTree::map_branch(tree_mut, &mut get_node, key, f)
     }
 
     #[inline]
-    pub fn proof(
-        &mut self,
-        start: &[u8],
-        end: &[u8]
-    ) -> Result<Vec<proof::Op>> {
+    pub fn proof(&mut self, start: &[u8], end: &[u8]) -> Result<Vec<proof::Op>> {
         proof::create(self, start, end)
     }
 }
 
-fn get_node(db: &rocksdb::DB, key: &[u8]) -> Result<Node> {
-    // errors if there is a db issue
-    let bytes = db.get_pinned(key)?;
-    if let Some(bytes) = bytes {
-        // errors if we can't decode the bytes
-        Node::decode(key, &bytes)
-    } else {
-        // key not found error
-        bail!("key not found: '{:?}'", key)
+fn get_node<'a>(db: &'a dyn Database, key: &[u8]) -> Result<Node> {
+    match db.get(key) {
+        Some(bytes) => Node::decode(key, &bytes),
+        None => bail!("key not found: '{:?}'", key),
     }
-}
-
-fn default_db_opts() -> rocksdb::Options {
-    let mut opts = rocksdb::Options::default();
-    opts.create_if_missing(true);
-    opts.increase_parallelism(num_cpus::get() as i32);
-    // TODO: tune
-    opts
 }
 
 // fn concat(a: &[u8], b: &[u8]) -> Vec<u8> {

@@ -6,7 +6,8 @@ use crate::node::{Link, Node};
 
 use TreeOp::{Delete, Put};
 
-pub trait GetNodeFn = FnMut(&Link) -> Result<Node>;
+pub trait GetNodeFn = Fn(&Link) -> Result<Node>;
+
 
 /// A selection of connected nodes in a tree.
 ///
@@ -134,7 +135,7 @@ impl SparseTree {
     /// undefined behavior.
     pub fn apply(
         self_container: &mut TreeContainer,
-        get_node: &mut dyn GetNodeFn,
+         get_node: &dyn GetNodeFn,
         batch: &TreeBatch
     ) -> Result<()> {
         if batch.is_empty() {
@@ -204,7 +205,7 @@ impl SparseTree {
     fn apply_child(
         &mut self,
         left: bool,
-        get_node: &mut dyn GetNodeFn,
+        get_node: &dyn GetNodeFn,
         batch: &TreeBatch
     ) -> Result<()> {
         // return early if batch is empty
@@ -227,7 +228,7 @@ impl SparseTree {
 
     pub fn remove(
         self_container: &mut TreeContainer,
-        get_node: &mut dyn GetNodeFn
+        get_node: &dyn GetNodeFn
     ) -> Result<Box<SparseTree>> {
         let tree = match self_container {
             None => unreachable!("cannot delete empty tree"),
@@ -275,7 +276,7 @@ impl SparseTree {
 
     pub fn remove_edge(
         self_container: &mut TreeContainer,
-        get_node: &mut dyn GetNodeFn,
+        get_node: &dyn GetNodeFn,
         left: bool
     ) -> Result<TreeContainer> {
         let tree = match self_container {
@@ -313,7 +314,7 @@ impl SparseTree {
         self.right.take();
     }
 
-    pub fn load_all(&mut self, get_node: &mut dyn GetNodeFn) -> Result<()> {
+    pub fn load_all(&mut self, get_node: &dyn GetNodeFn) -> Result<()> {
         self.maybe_get_child(get_node, true)?;
         self.maybe_get_child(get_node, false)?;
 
@@ -328,13 +329,13 @@ impl SparseTree {
 
     pub fn map_branch<F: FnMut(&Node)>(
         tree: Option<&mut SparseTree>,
-        get_node: &mut dyn GetNodeFn,
+        get_node: &dyn GetNodeFn,
         key: &[u8],
         f: &mut F
     ) -> Result<()> {
         fn traverse<F: FnMut(&Node)>(
             tree: Option<&mut SparseTree>,
-            get_node: &mut dyn GetNodeFn,
+            get_node: &dyn GetNodeFn,
             key: &[u8],
             f: &mut F
         ) -> Result<()> {
@@ -391,7 +392,7 @@ impl SparseTree {
 
     fn maybe_get_child(
         &mut self,
-        get_node: &mut dyn GetNodeFn,
+        get_node: &dyn GetNodeFn,
         left: bool,
     ) -> Result<Option<&mut SparseTree>> {
         if let Some(link) = self.child_link(left) {
@@ -414,7 +415,7 @@ impl SparseTree {
 
     fn maybe_rebalance(
         self_container: &mut TreeContainer,
-        get_node: &mut dyn GetNodeFn
+        get_node: &dyn GetNodeFn
     ) -> Result<()> {
         // unwrap self_container or return early if empty
         let tree = match self_container {
@@ -463,7 +464,7 @@ impl SparseTree {
 
     fn rotate(
         self_container: &mut TreeContainer,
-        get_node: &mut dyn GetNodeFn,
+        get_node: &dyn GetNodeFn,
         left: bool
     ) -> Result<()> {
         // take ownership of self. very inspiring.

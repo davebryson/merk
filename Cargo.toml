@@ -17,6 +17,7 @@ serde = "1.0.91"
 colored = "1.8.0"
 num_cpus = "1.10.0"
 error-chain = "0.12.1"
+tempfile = "3.1.0"
 
 [dependencies.blake2-rfc]
 version = "0.2.18"
