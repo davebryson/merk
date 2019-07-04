@@ -5,31 +5,29 @@ extern crate test;
 use merk::store::rocksdb::RocksDB;
 use merk::store::temporarydb::TemporaryDB;
 
-use merk::*;
 use merk::proof;
+use merk::*;
 
 #[test]
 fn merk_simple_put() {
     let mut db = TemporaryDB::new();
     let mut merk = Merk::new(&mut db).unwrap();
-    //let mut merk = Merk::open("./test_merk_simple_put.db").unwrap();
     let mut batch: Vec<TreeBatchEntry> = vec![
         (b"key", TreeOp::Put(b"value")),
         (b"key2", TreeOp::Put(b"value2")),
-        (b"key3", TreeOp::Put(b"value3"))
+        (b"key3", TreeOp::Put(b"value3")),
     ];
     merk.apply(&mut batch).unwrap();
 }
 
 #[test]
 fn merk_range_inclusive() {
-    //let mut merk = Merk::open("./test_merk_range.db").unwrap();
     let mut db = TemporaryDB::new();
     let mut merk = Merk::new(&mut db).unwrap();
     let mut batch: Vec<TreeBatchEntry> = vec![
         (b"key", TreeOp::Put(b"value")),
         (b"key2", TreeOp::Put(b"value2")),
-        (b"key3", TreeOp::Put(b"value3"))
+        (b"key3", TreeOp::Put(b"value3")),
     ];
     merk.apply(&mut batch).unwrap();
 
@@ -38,13 +36,13 @@ fn merk_range_inclusive() {
         let expected_key = batch[i].0;
         assert_eq!(node.key, expected_key);
         i += 1;
-    }).unwrap();
+    })
+    .unwrap();
     assert_eq!(i, 3);
 }
 
 #[test]
 fn merk_proof() {
-    //let mut merk = Merk::open("./test_merk_proof.db").unwrap();
     let mut db = TemporaryDB::new();
     let mut merk = Merk::new(&mut db).unwrap();
     let mut batch: Vec<TreeBatchEntry> = vec![
@@ -53,7 +51,7 @@ fn merk_proof() {
         (b"key3", TreeOp::Put(b"value3")),
         (b"key4", TreeOp::Put(b"value4")),
         (b"key5", TreeOp::Put(b"value5")),
-        (b"key6", TreeOp::Put(b"value6"))
+        (b"key6", TreeOp::Put(b"value6")),
     ];
     merk.apply(&mut batch).unwrap();
 
@@ -61,14 +59,17 @@ fn merk_proof() {
 
     proof::verify(
         // TODO: use merk root_hash function instead of hardcoding?
-        &[164, 172, 235, 50, 254, 105, 16, 195, 220, 18, 217, 39, 44, 215, 194, 160, 253, 84, 27, 75],
-        &proof
-    ).unwrap();
+        &[
+            164, 172, 235, 50, 254, 105, 16, 195, 220, 18, 217, 39, 44, 215, 194, 160, 253, 84, 27,
+            75,
+        ],
+        &proof,
+    )
+    .unwrap();
 }
 
 #[test]
 fn merk_delete_1k() {
-    //let mut merk = Merk::open("./test_merk_delete_1k.db").unwrap();
     let mut db = TemporaryDB::new();
     let mut merk = Merk::new(&mut db).unwrap();
 
@@ -112,11 +113,11 @@ fn merk_load() {
 
     {
         let mut db = RocksDB::open("./test_merk_load.db").unwrap();
-        let mut merk = Merk::new(&mut db).unwrap();
+        let merk = Merk::new(&mut db).unwrap();
 
         for key in keys.iter() {
             assert_eq!(merk.get(key).unwrap(), b"xyz");
         }
-         db.destroy();
+        db.destroy();
     }
 }
