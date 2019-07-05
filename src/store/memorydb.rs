@@ -1,9 +1,10 @@
-use crate::store::{Database, DbBatch};
 use crate::error::Result;
+use crate::store::{Database, DbBatch};
 
 use std::collections::BTreeMap;
 use std::sync::RwLock;
 
+/// Memory backed Database
 pub struct MemoryDb {
     map: RwLock<BTreeMap<Vec<u8>, Vec<u8>>>,
 }
@@ -58,6 +59,7 @@ impl Database for MemoryDb {
                 .clone()
                 .into_iter()
                 .filter_map(move |(k, v)| {
+                    // Filter down to the inclusive range
                     if k[..] >= start[..] && k[..] <= end[..] {
                         Some((k.into_boxed_slice(), v.into_boxed_slice()))
                     } else {

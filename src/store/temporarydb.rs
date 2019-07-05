@@ -4,6 +4,8 @@ use crate::store::{Database, DbBatch};
 
 use tempfile::TempDir;
 
+/// Temporary directory wrapper around RocksDB. TempDir automatically deletes
+/// the underlying directory once TemoraryDB goes out of scope.
 pub struct TemporaryDB {
     db: RocksDB,
     tdir: TempDir,

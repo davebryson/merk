@@ -3,6 +3,8 @@ use crate::store::{Database, DbBatch};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+/// Basic Rocks db implementation.
+/// Maybe add columns for key prefixes?
 pub struct RocksDB {
     db: Arc<rocksdb::DB>,
     dbpath: PathBuf,
