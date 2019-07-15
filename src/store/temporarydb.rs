@@ -1,14 +1,15 @@
 use crate::error::Result;
 use crate::store::rocksdb::RocksDB;
-use crate::store::{Database, DbBatch};
+use crate::store::Database;
 
 use tempfile::TempDir;
 
 /// Temporary directory wrapper around RocksDB. TempDir automatically deletes
 /// the underlying directory once TemoraryDB goes out of scope.
+/// ** Unused but needed to keep the TempDir from dropping under certain circumstances
 pub struct TemporaryDB {
     db: RocksDB,
-    tdir: TempDir,
+    _tdir: TempDir, // **
 }
 
 impl TemporaryDB {
@@ -16,20 +17,18 @@ impl TemporaryDB {
         let dir = TempDir::new().unwrap();
         Self {
             db: RocksDB::open(&dir).unwrap(),
-            tdir: dir,
+            _tdir: dir,
         }
     }
 }
 
 impl Database for TemporaryDB {
-    fn put(&mut self, key: &[u8], value: Vec<u8>) -> Result<()> {
-        self.db.put(key, value);
-        Ok(())
+    fn put(&self, key: &[u8], value: Vec<u8>) -> Result<()> {
+        self.db.put(key, value)
     }
 
-    fn delete(&mut self, key: &[u8]) -> Result<()> {
-        self.db.delete(key);
-        Ok(())
+    fn delete(&self, key: &[u8]) -> Result<()> {
+        self.db.delete(key)
     }
 
     // Return a node for a given key
@@ -38,7 +37,7 @@ impl Database for TemporaryDB {
     }
 
     // Commit batch to the db
-    fn write_batch(&mut self, batch: DbBatch) -> Result<()> {
+    fn write_batch<'a>(&self, batch: Vec<(&'a [u8], Vec<u8>)>) -> Result<()> {
         self.db.write_batch(batch)
     }
 

@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::store::{Database, DbBatch};
+use crate::store::Database;
 
 use std::collections::BTreeMap;
 use std::sync::RwLock;
@@ -18,7 +18,7 @@ impl MemoryDb {
 }
 
 impl Database for MemoryDb {
-    fn write_batch(&mut self, batch: DbBatch) -> Result<()> {
+    fn write_batch<'a>(&self, batch: Vec<(&'a [u8], Vec<u8>)>) -> Result<()> {
         let mut guard = self.map.write().expect("Lock");
         for (key, value) in batch {
             guard.insert(Vec::from(key), value);
@@ -26,13 +26,13 @@ impl Database for MemoryDb {
         Ok(())
     }
 
-    fn put(&mut self, key: &[u8], value: Vec<u8>) -> Result<()> {
+    fn put(&self, key: &[u8], value: Vec<u8>) -> Result<()> {
         let mut guard = self.map.write().expect("Lock");
         guard.insert(Vec::from(key), value);
         Ok(())
     }
 
-    fn delete(&mut self, key: &[u8]) -> Result<()> {
+    fn delete(&self, key: &[u8]) -> Result<()> {
         let mut guard = self.map.write().expect("Lock");
         guard.remove(key);
         Ok(())

@@ -8,10 +8,16 @@ use merk::store::temporarydb::TemporaryDB;
 use merk::proof;
 use merk::*;
 
+use std::sync::Arc;
+use tempfile::TempDir;
+
+fn make_temp_db() -> Merk {
+    Merk::new(Arc::new(TemporaryDB::new())).unwrap()
+}
+
 #[test]
 fn merk_simple_put() {
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = make_temp_db();
     let mut batch: Vec<TreeBatchEntry> = vec![
         (b"key", TreeOp::Put(b"value")),
         (b"key2", TreeOp::Put(b"value2")),
@@ -22,8 +28,7 @@ fn merk_simple_put() {
 
 #[test]
 fn merk_range_inclusive() {
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = make_temp_db();
     let mut batch: Vec<TreeBatchEntry> = vec![
         (b"key", TreeOp::Put(b"value")),
         (b"key2", TreeOp::Put(b"value2")),
@@ -43,8 +48,7 @@ fn merk_range_inclusive() {
 
 #[test]
 fn merk_proof() {
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = make_temp_db();
     let mut batch: Vec<TreeBatchEntry> = vec![
         (b"key1", TreeOp::Put(b"value1")),
         (b"key2", TreeOp::Put(b"value2")),
@@ -70,8 +74,7 @@ fn merk_proof() {
 
 #[test]
 fn merk_delete_1k() {
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = make_temp_db();
 
     let mut keys: Vec<[u8; 4]> = Vec::with_capacity(1001);
     let mut batch: Vec<TreeBatchEntry> = Vec::with_capacity(1001);
@@ -95,14 +98,16 @@ fn merk_delete_1k() {
 
 #[test]
 fn merk_load() {
+    let dir = TempDir::new().unwrap();
+
     let mut keys: Vec<[u8; 4]> = Vec::with_capacity(100);
     for i in 0..100 {
         keys.push((i as u32).to_be_bytes());
     }
 
     {
-        let mut db = RocksDB::open("./test_merk_load.db").unwrap();
-        let mut merk = Merk::new(&mut db).unwrap();
+        let db = Arc::new(RocksDB::open(&dir).unwrap());
+        let mut merk = Merk::new(db).unwrap();
 
         let mut batch: Vec<TreeBatchEntry> = Vec::with_capacity(100);
         for i in 0..100 {
@@ -112,12 +117,11 @@ fn merk_load() {
     }
 
     {
-        let mut db = RocksDB::open("./test_merk_load.db").unwrap();
-        let merk = Merk::new(&mut db).unwrap();
+        let db = Arc::new(RocksDB::open(&dir).unwrap());
+        let merk = Merk::new(db).unwrap();
 
         for key in keys.iter() {
             assert_eq!(merk.get(key).unwrap(), b"xyz");
         }
-        db.destroy();
     }
 }

@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::store::{Database, DbBatch};
+use crate::store::Database;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -39,14 +39,15 @@ impl RocksDB {
     }
 }
 
+// TODO: Match up Results correctly
 impl Database for RocksDB {
-    fn put(&mut self, key: &[u8], value: Vec<u8>) -> Result<()> {
-        self.db.put(key, value);
+    fn put(&self, key: &[u8], value: Vec<u8>) -> Result<()> {
+        self.db.put(key, value)?;
         Ok(())
     }
 
-    fn delete(&mut self, key: &[u8]) -> Result<()> {
-        self.db.delete(key);
+    fn delete(&self, key: &[u8]) -> Result<()> {
+        self.db.delete(key)?;
         Ok(())
     }
 
@@ -59,10 +60,10 @@ impl Database for RocksDB {
     }
 
     // Commit batch to the db
-    fn write_batch(&mut self, batch: DbBatch) -> Result<()> {
+    fn write_batch<'a>(&self, batch: Vec<(&'a [u8], Vec<u8>)>) -> Result<()> {
         let mut dbbatch = rocksdb::WriteBatch::default();
         for (k, v) in batch {
-            dbbatch.put(k, v);
+            dbbatch.put(k, v)?;
         }
         let mut opts = rocksdb::WriteOptions::default();
         opts.set_sync(false);

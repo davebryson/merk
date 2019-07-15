@@ -1,16 +1,17 @@
 #![feature(test)]
 
-extern crate test;
 extern crate rand;
+extern crate test;
 
-use merk::*;
 use merk::store::temporarydb::TemporaryDB;
+use merk::*;
 use rand::prelude::*;
+
+use std::sync::Arc;
 
 #[bench]
 fn bench_put_insert_random(b: &mut test::Bencher) {
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 40];
 
@@ -55,10 +56,7 @@ fn bench_put_insert_random(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_put_update_random(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_put_update_random.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
-   
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 40];
 
@@ -101,9 +99,7 @@ fn bench_put_update_random(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_delete_random(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_delete_random.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 40];
 
@@ -146,9 +142,8 @@ fn bench_delete_random(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_get_random(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_get_random.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
+
     let mut rng = rand::thread_rng();
 
     let value = [123; 40];
@@ -179,9 +174,7 @@ fn bench_get_random(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_put_insert_sequential(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_put_insert_sequential.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 40];
 
@@ -226,9 +219,7 @@ fn bench_put_insert_sequential(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_put_update_sequential(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_put_update_sequential.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 40];
 
@@ -271,9 +262,7 @@ fn bench_put_update_sequential(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_get_sequential(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_get_sequential.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 40];
 
@@ -304,9 +293,7 @@ fn bench_get_sequential(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_delete_sequential(b: &mut test::Bencher) {
-    //let mut merk = Merk::open("./test_merk_bench_delete_sequential.db").unwrap();
-    let mut db = TemporaryDB::new();
-    let mut merk = Merk::new(&mut db).unwrap();
+    let mut merk = Merk::new(Arc::new(TemporaryDB::new())).unwrap();
 
     let value = [123; 1];
 

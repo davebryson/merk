@@ -5,20 +5,21 @@ use crate::node::{Link, Node};
 use crate::proof;
 use crate::sparse_tree::{SparseTree, TreeBatch};
 use crate::store::Database;
+use std::sync::Arc;
 
 const ROOT_KEY_KEY: [u8; 6] = *b"\00root";
 
 /// A handle to a Merkle key/value store backed by RocksDB.
-pub struct Merk<'a> {
+pub struct Merk {
     pub tree: Option<Box<SparseTree>>,
-    db: &'a mut dyn Database,
+    db: Arc<dyn Database>,
 }
 
-impl<'a> Merk<'a> {
-    pub fn new(db: &'a mut dyn Database) -> Result<Merk> {
+impl Merk {
+    pub fn new(db: Arc<dyn Database>) -> Result<Merk> {
         let tree = match db.get(&ROOT_KEY_KEY) {
             Some(root_key) => {
-                let root_node = get_node(db, &root_key)?;
+                let root_node = get_node(db.as_ref(), &root_key)?;
                 Some(Box::new(SparseTree::new(root_node)))
             }
             None => None,
@@ -26,16 +27,8 @@ impl<'a> Merk<'a> {
         Ok(Merk { tree, db })
     }
 
-    pub fn db(&self) -> &dyn Database {
-        self.db
-    }
-
-    pub fn db_mut(&mut self) -> &mut dyn Database {
-        self.db
-    }
-
     pub fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
-        let node = get_node(self.db(), key)?;
+        let node = get_node(self.db.as_ref(), key)?;
         Ok(node.value)
     }
 
