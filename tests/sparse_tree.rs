@@ -1,8 +1,8 @@
 #![feature(test)]
 
-extern crate test;
 extern crate merk;
 extern crate rand;
+extern crate test;
 
 mod util;
 
@@ -11,9 +11,7 @@ use rand::prelude::*;
 
 #[test]
 fn from_batch_single_put() {
-    let batch: &[TreeBatchEntry] = &[
-        (b"0000", TreeOp::Put(b"0000"))
-    ];
+    let batch: &[TreeBatchEntry] = &[(b"0000", TreeOp::Put(b"0000".to_vec()))];
     let tree = SparseTree::from_batch(batch).unwrap().unwrap();
 
     assert_eq!(tree.node().key, b"0000");
@@ -31,7 +29,7 @@ fn from_batch_1k_put() {
 
     let mut batch: Vec<TreeBatchEntry> = vec![];
     for key in keys.iter() {
-        batch.push((key, TreeOp::Put(key)));
+        batch.push((key, TreeOp::Put(key.to_vec())));
     }
 
     let tree = SparseTree::from_batch(&batch).unwrap().unwrap();
@@ -44,7 +42,7 @@ fn from_batch_deletes_only() {
     let batch: &[TreeBatchEntry] = &[
         (&[1, 2, 3], TreeOp::Delete),
         (&[1, 2, 4], TreeOp::Delete),
-        (&[1, 2, 5], TreeOp::Delete)
+        (&[1, 2, 5], TreeOp::Delete),
     ];
     let result = SparseTree::from_batch(batch);
     assert_err!(result, "Tried to delete non-existent key: [1, 2, 4]");
@@ -53,10 +51,10 @@ fn from_batch_deletes_only() {
 #[test]
 fn from_batch_puts_and_deletes() {
     let batch: &[TreeBatchEntry] = &[
-        (&[1, 2, 3], TreeOp::Put(b"xyz")),
+        (&[1, 2, 3], TreeOp::Put(b"xyz".to_vec())),
         (&[1, 2, 4], TreeOp::Delete),
-        (&[1, 2, 5], TreeOp::Put(b"foo")),
-        (&[1, 2, 6], TreeOp::Put(b"bar"))
+        (&[1, 2, 5], TreeOp::Put(b"foo".to_vec())),
+        (&[1, 2, 6], TreeOp::Put(b"bar".to_vec())),
     ];
     let result = SparseTree::from_batch(batch);
     assert_err!(result, "Tried to delete non-existent key: [1, 2, 4]");
@@ -72,9 +70,7 @@ fn from_batch_empty() {
 #[test]
 fn apply_simple_insert() {
     let mut container = None;
-    let batch: &[TreeBatchEntry] = &[
-        (b"key", TreeOp::Put(b"value"))
-    ];
+    let batch: &[TreeBatchEntry] = &[(b"key", TreeOp::Put(b"value".to_vec()))];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
     let tree = container.unwrap();
@@ -86,14 +82,8 @@ fn apply_simple_insert() {
 
 #[test]
 fn apply_simple_update() {
-    let mut container = Some(Box::new(
-        SparseTree::new(
-            Node::new(b"key", b"value")
-        )
-    ));
-    let batch: &[TreeBatchEntry] = &[
-        (b"key", TreeOp::Put(b"new value"))
-    ];
+    let mut container = Some(Box::new(SparseTree::new(Node::new(b"key", b"value"))));
+    let batch: &[TreeBatchEntry] = &[(b"key", TreeOp::Put(b"new value".to_vec()))];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
     let tree = container.unwrap();
@@ -105,28 +95,16 @@ fn apply_simple_update() {
 
 #[test]
 fn apply_simple_delete() {
-    let mut container = Some(Box::new(
-        SparseTree::new(
-            Node::new(b"key", b"value")
-        )
-    ));
-    let batch: &[TreeBatchEntry] = &[
-        (b"key", TreeOp::Delete)
-    ];
+    let mut container = Some(Box::new(SparseTree::new(Node::new(b"key", b"value"))));
+    let batch: &[TreeBatchEntry] = &[(b"key", TreeOp::Delete)];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
     assert_eq!(container, None);
 }
 
 #[test]
 fn apply_insert_under() {
-    let mut container = Some(Box::new(
-        SparseTree::new(
-            Node::new(&[5], b"value")
-        )
-    ));
-    let batch: &[TreeBatchEntry] = &[
-        (&[6], TreeOp::Put(b"value"))
-    ];
+    let mut container = Some(Box::new(SparseTree::new(Node::new(&[5], b"value"))));
+    let batch: &[TreeBatchEntry] = &[(&[6], TreeOp::Put(b"value".to_vec()))];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
     let tree = container.unwrap();
@@ -141,14 +119,10 @@ fn apply_insert_under() {
 
 #[test]
 fn apply_update_and_insert() {
-    let mut container = Some(Box::new(
-        SparseTree::new(
-            Node::new(&[5], b"value")
-        )
-    ));
+    let mut container = Some(Box::new(SparseTree::new(Node::new(&[5], b"value"))));
     let batch: &[TreeBatchEntry] = &[
-        (&[5], TreeOp::Put(b"value2")),
-        (&[6], TreeOp::Put(b"value3"))
+        (&[5], TreeOp::Put(b"value2".to_vec())),
+        (&[6], TreeOp::Put(b"value3".to_vec())),
     ];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
@@ -164,14 +138,10 @@ fn apply_update_and_insert() {
 
 #[test]
 fn apply_insert_balance() {
-    let mut container = Some(Box::new(
-        SparseTree::new(
-            Node::new(&[5], b"value")
-        )
-    ));
+    let mut container = Some(Box::new(SparseTree::new(Node::new(&[5], b"value"))));
     let batch: &[TreeBatchEntry] = &[
-        (&[6], TreeOp::Put(b"value2")),
-        (&[7], TreeOp::Put(b"value3"))
+        (&[6], TreeOp::Put(b"value2".to_vec())),
+        (&[7], TreeOp::Put(b"value3".to_vec())),
     ];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
@@ -189,22 +159,16 @@ fn apply_insert_balance() {
 
 #[test]
 fn apply_delete_inner() {
-    let mut container = Some(Box::new(
-        SparseTree::new(
-            Node::new(&[5], b"value")
-        )
-    ));
+    let mut container = Some(Box::new(SparseTree::new(Node::new(&[5], b"value"))));
     let batch: &[TreeBatchEntry] = &[
-        (&[6], TreeOp::Put(b"value2")),
-        (&[7], TreeOp::Put(b"value3")),
-        (&[8], TreeOp::Put(b"value4")),
-        (&[9], TreeOp::Put(b"value5")),
+        (&[6], TreeOp::Put(b"value2".to_vec())),
+        (&[7], TreeOp::Put(b"value3".to_vec())),
+        (&[8], TreeOp::Put(b"value4".to_vec())),
+        (&[9], TreeOp::Put(b"value5".to_vec())),
     ];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
-    let batch: &[TreeBatchEntry] = &[
-        (&[8], TreeOp::Delete)
-    ];
+    let batch: &[TreeBatchEntry] = &[(&[8], TreeOp::Delete)];
     SparseTree::apply(&mut container, &mut |_| unreachable!(), batch).unwrap();
 
     let tree = container.unwrap();
@@ -221,11 +185,7 @@ fn insert_100() {
     let mut tree = None;
     let keys = sequential_keys(0, 100);
     let batch = puts(&keys);
-    SparseTree::apply(
-        &mut tree,
-        &mut |_| unreachable!(),
-        &batch
-    ).unwrap();
+    SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
     let tree = tree.expect("tree should not be empty");
     assert_tree_valid(&tree);
@@ -250,11 +210,7 @@ fn update_100() {
     let mut tree = None;
     let keys = sequential_keys(0, 100);
     let batch = puts(&keys);
-    SparseTree::apply(
-        &mut tree,
-        &mut |_| unreachable!(),
-        &batch
-    ).unwrap();
+    SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
     let tree_box = tree.as_ref().expect("tree should not be empty");
     assert_tree_valid(&tree_box);
@@ -280,11 +236,7 @@ fn delete_100() {
     let mut tree = None;
     let keys = sequential_keys(0, 100);
     let batch = puts(&keys);
-    SparseTree::apply(
-        &mut tree,
-        &mut |_| unreachable!(),
-        &batch
-    ).unwrap();
+    SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
     let tree_box = tree.as_ref().expect("tree should not be empty");
     assert_tree_valid(&tree_box);
     assert_tree_keys(&tree_box, &keys);
@@ -308,11 +260,7 @@ fn delete_sequential() {
     let mut tree = None;
     let keys = sequential_keys(0, 100);
     let batch = puts(&keys);
-    SparseTree::apply(
-        &mut tree,
-        &mut |_| unreachable!(),
-        &batch
-    ).unwrap();
+    SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
     let tree_box = tree.as_ref().expect("tree should not be empty");
     assert_tree_valid(&tree_box);
@@ -321,14 +269,12 @@ fn delete_sequential() {
     // delete sequential keys
     let keys = sequential_keys(0, 100);
     for i in 0..99 {
-        let batch: &[TreeBatchEntry] = &[
-            (&keys[i], TreeOp::Delete)
-        ];
+        let batch: &[TreeBatchEntry] = &[(&keys[i], TreeOp::Delete)];
         SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
         let tree_box = tree.as_ref().expect("tree should not be empty");
         assert_tree_valid(&tree_box);
-        assert_tree_keys(&tree_box, &keys[i+1..]);
+        assert_tree_keys(&tree_box, &keys[i + 1..]);
     }
 }
 
@@ -337,26 +283,22 @@ fn insert_sparse() {
     let mut tree = None;
     let keys = sequential_keys(0, 5);
     let batch = puts(&keys);
-    SparseTree::apply(
-        &mut tree,
-        &mut |_| unreachable!(),
-        &batch
-    ).unwrap();
+    SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
     let tree_box = tree.as_ref().expect("tree should not be empty");
     assert_tree_valid(&tree_box);
     assert_tree_keys(&tree_box, &keys);
 
     // add keys 5 - 10
-    let mut cloned_tree = Some(Box::new(
-        SparseTree::new(tree.as_ref().unwrap().node().clone())
-    ));
+    let mut cloned_tree = Some(Box::new(SparseTree::new(
+        tree.as_ref().unwrap().node().clone(),
+    )));
     let keys = sequential_keys(5, 10);
     let batch = puts(&keys);
     let mut get_node = |link: &Link| {
         // get nodes from original tree (which is fully loaded in memory)
         println!("get node {:?}", &link.key);
-        fn traverse (link: &Link, node: &SparseTree) -> Node {
+        fn traverse(link: &Link, node: &SparseTree) -> Node {
             if &node.key == &link.key {
                 node.node().clone()
             } else if &link.key < &node.key {
@@ -369,7 +311,11 @@ fn insert_sparse() {
     };
     SparseTree::apply(&mut cloned_tree, &mut get_node, &batch).unwrap();
 
-    cloned_tree.as_mut().unwrap().load_all(&mut get_node).unwrap();
+    cloned_tree
+        .as_mut()
+        .unwrap()
+        .load_all(&mut get_node)
+        .unwrap();
     println!("{:?}", cloned_tree.as_ref().unwrap());
 
     let tree_box = cloned_tree.as_ref().expect("tree should not be empty");
@@ -382,20 +328,16 @@ fn delete_sparse() {
     let mut tree = None;
     let keys = sequential_keys(0, 100);
     let batch = puts(&keys);
-    SparseTree::apply(
-        &mut tree,
-        &mut |_| unreachable!(),
-        &batch
-    ).unwrap();
+    SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
     let tree_box = tree.as_ref().expect("tree should not be empty");
     assert_tree_valid(&tree_box);
     assert_tree_keys(&tree_box, &keys);
 
     // delete sequential keys
-    let mut cloned_tree = Some(Box::new(
-        SparseTree::new(tree.as_ref().unwrap().node().clone())
-    ));
+    let mut cloned_tree = Some(Box::new(SparseTree::new(
+        tree.as_ref().unwrap().node().clone(),
+    )));
     let keys = sequential_keys(0, 100);
     let mut batch: Vec<TreeBatchEntry> = Vec::with_capacity(100);
     for i in 0..99 {
@@ -405,7 +347,7 @@ fn delete_sparse() {
         &mut cloned_tree,
         // get nodes from original tree (which is fully loaded in memory)
         &mut |link| {
-            fn traverse (link: &Link, node: &SparseTree) -> Node {
+            fn traverse(link: &Link, node: &SparseTree) -> Node {
                 if &node.key == &link.key {
                     node.node().clone()
                 } else if &link.key < &node.key {
@@ -416,12 +358,13 @@ fn delete_sparse() {
             };
             Ok(traverse(link, tree.as_ref().unwrap()))
         },
-        &batch
-    ).unwrap();
+        &batch,
+    )
+    .unwrap();
 
     let tree_box = cloned_tree.as_ref().expect("tree should not be empty");
     assert_tree_valid(&tree_box);
-    assert_tree_keys(&tree_box, &[ keys.last().unwrap() ]);
+    assert_tree_keys(&tree_box, &[keys.last().unwrap()]);
 }
 
 #[test]
@@ -439,7 +382,6 @@ fn fuzz() {
 
     for _ in 0..10 {
         let mut tree = None;
-        
         let mut keys: Vec<Vec<u8>> = vec![];
         let mut key_set = HashSet::new();
 
@@ -453,9 +395,7 @@ fn fuzz() {
             };
             let insert_count = rng.gen::<usize>() % 10;
 
-            let mut batch: Vec<TreeBatchEntry> = Vec::with_capacity(
-                modify_count + insert_count
-            );
+            let mut batch: Vec<TreeBatchEntry> = Vec::with_capacity(modify_count + insert_count);
 
             // updates/deletes
             let mut batch_keys = HashSet::new();
@@ -467,19 +407,21 @@ fn fuzz() {
 
                     // don't allow duplicate keys
                     let not_duplicate = batch_keys.insert(key);
-                    if !not_duplicate { continue }
+                    if !not_duplicate {
+                        continue;
+                    }
 
                     // add to batch
                     let op = if rng.gen::<bool>() {
                         let index = rng.gen::<usize>() % values.len();
-                        TreeOp::Put(&values[index])
+                        TreeOp::Put(values[index].clone())
                     } else {
                         delete_keys.insert(key.clone());
                         TreeOp::Delete
                     };
                     batch.push((&key, op));
 
-                    break
+                    break;
                 }
             }
 
@@ -493,31 +435,35 @@ fn fuzz() {
 
                     // don't allow duplicate keys
                     let not_duplicate = key_set.insert(key2);
-                    if !not_duplicate { continue }
+                    if !not_duplicate {
+                        continue;
+                    }
 
                     insert_keys.push(key);
-                    break
+                    break;
                 }
             }
 
             for key in insert_keys.iter() {
                 let index = rng.gen::<usize>() % values.len();
-                batch.push((&key, TreeOp::Put(&values[index])));
+                batch.push((&key, TreeOp::Put(values[index].clone())));
             }
 
             // sort batch
             batch.sort_by(|a, b| a.0.cmp(&b.0));
 
             // apply batch
-            println!("applying, batch size: {}, tree size: {}", batch.len(), keys.len());
+            println!(
+                "applying, batch size: {}, tree size: {}",
+                batch.len(),
+                keys.len()
+            );
             SparseTree::apply(&mut tree, &mut |_| unreachable!(), &batch).unwrap();
 
             // add newly inserted keys to keys vector
             keys.append(&mut insert_keys);
             // remove deleted keys from keys vector
-            let mut new_keys = Vec::with_capacity(
-                keys.len() - delete_keys.len()
-            );
+            let mut new_keys = Vec::with_capacity(keys.len() - delete_keys.len());
             for key in keys.iter() {
                 if !delete_keys.contains(key) {
                     new_keys.push(key.clone());
@@ -532,7 +478,7 @@ fn fuzz() {
                 Some(tree) => {
                     assert_tree_valid(tree);
                     assert_tree_keys(tree, &keys);
-                },
+                }
                 None => {
                     assert_eq!(keys.len(), 0);
                 }
@@ -549,10 +495,7 @@ fn random_bytes(rng: &mut ThreadRng, length: usize) -> Vec<u8> {
 fn assert_tree_valid(tree: &SparseTree) {
     assert!(
         tree.balance_factor().abs() <= 1,
-        format!(
-            "node should be balanced. bf={}",
-            tree.balance_factor()
-        )
+        format!("node should be balanced. bf={}", tree.balance_factor())
     );
 
     let assert_child_valid = |child: &SparseTree, left: bool| {
@@ -596,14 +539,14 @@ fn tree_keys<'a>(tree: &'a SparseTree) -> Vec<&'a [u8]> {
     fn traverse<'a>(tree: &'a SparseTree, keys: Vec<&'a [u8]>) -> Vec<&'a [u8]> {
         let mut keys = match tree.child_tree(true) {
             None => keys,
-            Some(child) => traverse(child, keys)
+            Some(child) => traverse(child, keys),
         };
 
         keys.push(&tree.key);
 
         match tree.child_tree(false) {
             None => keys,
-            Some(child) => traverse(child, keys)
+            Some(child) => traverse(child, keys),
         }
     }
 
@@ -630,7 +573,7 @@ fn sequential_keys(start: usize, end: usize) -> Vec<[u8; 4]> {
 fn puts<'a>(keys: &'a [[u8; 4]]) -> Vec<TreeBatchEntry<'a>> {
     let mut batch: Vec<TreeBatchEntry> = vec![];
     for key in keys.iter() {
-        batch.push((&key[..], TreeOp::Put(b"x")));
+        batch.push((&key[..], TreeOp::Put(b"x".to_vec())));
     }
     batch
 }

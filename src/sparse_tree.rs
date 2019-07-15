@@ -8,7 +8,6 @@ use TreeOp::{Delete, Put};
 
 pub trait GetNodeFn = Fn(&Link) -> Result<Node>;
 
-
 /// A selection of connected nodes in a tree.
 ///
 /// SparseTrees are acyclic, and always have at least one node.
@@ -21,25 +20,29 @@ pub trait GetNodeFn = Fn(&Link) -> Result<Node>;
 pub struct SparseTree {
     pub node: Node,
     pub left: TreeContainer,
-    pub right: TreeContainer
+    pub right: TreeContainer,
 }
 
-pub enum TreeOp<'a> {
-    Put(&'a [u8]),
-    Delete
+pub enum TreeOp {
+    //Put(&'a [u8]),
+    Put(Vec<u8>),
+    Delete,
 }
 
-impl<'a> fmt::Debug for TreeOp<'a> {
+impl fmt::Debug for TreeOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}", match self {
-            Put(value) => format!("Put({:?})", value),
-            Delete => "Delete".to_string()
-        })
+        writeln!(
+            f,
+            "{}",
+            match self {
+                Put(value) => format!("Put({:?})", value),
+                Delete => "Delete".to_string(),
+            }
+        )
     }
 }
 
-
-pub type TreeBatchEntry<'a> = (&'a [u8], TreeOp<'a>);
+pub type TreeBatchEntry<'a> = (&'a [u8], TreeOp);
 pub type TreeBatch<'a> = [TreeBatchEntry<'a>];
 
 pub type TreeContainer = Option<Box<SparseTree>>;
@@ -66,15 +69,11 @@ impl SparseTree {
 
         let mid_value = match mid_op {
             Delete => bail!("Tried to delete non-existent key: {:?}", mid_key),
-            Put(value) => value
+            Put(value) => value,
         };
 
         // use middle value as root of new tree
-        let mut tree = Some(Box::new(
-            SparseTree::new(
-                Node::new(mid_key, mid_value)
-            )
-        ));
+        let mut tree = Some(Box::new(SparseTree::new(Node::new(mid_key, mid_value))));
 
         // add the rest of the batch to the new tree, split into 2
         // batches
@@ -83,15 +82,15 @@ impl SparseTree {
             &mut tree,
             // this is a fresh tree so we never need to fetch nodes
             &mut |_| unreachable!("should not fetch"),
-            left_batch
+            left_batch,
         )?;
 
-        let right_batch = &batch[mid+1..];
+        let right_batch = &batch[mid + 1..];
         SparseTree::apply(
             &mut tree,
             // this is a fresh tree so we never need to fetch nodes
             &mut |_| unreachable!("should not fetch"),
-            right_batch
+            right_batch,
         )?;
 
         Ok(tree)
@@ -100,7 +99,7 @@ impl SparseTree {
     pub fn modified<'a>(&'a self) -> Result<Vec<(&'a [u8], Vec<u8>)>> {
         fn traverse<'a>(
             tree: &'a SparseTree,
-            output: Vec<(&'a [u8], Vec<u8>)>
+            output: Vec<(&'a [u8], Vec<u8>)>,
         ) -> Result<Vec<(&'a [u8], Vec<u8>)>> {
             let mut output = if let Some(child) = tree.child_tree(true) {
                 traverse(child, output)?
@@ -135,8 +134,8 @@ impl SparseTree {
     /// undefined behavior.
     pub fn apply(
         self_container: &mut TreeContainer,
-         get_node: &dyn GetNodeFn,
-        batch: &TreeBatch
+        get_node: &dyn GetNodeFn,
+        batch: &TreeBatch,
     ) -> Result<()> {
         if batch.is_empty() {
             return Ok(());
@@ -146,10 +145,7 @@ impl SparseTree {
         // so we only do it in debug builds. in release builds, non-sorted or
         // duplicate keys results in UB!
         for pair in batch.windows(2) {
-            debug_assert!(
-                pair[0].0 < pair[1].0,
-                "keys must be sorted and unique"
-            );
+            debug_assert!(pair[0].0 < pair[1].0, "keys must be sorted and unique");
         }
 
         // TODO: build and return db batch, and maybe prune as we ascend
@@ -159,26 +155,24 @@ impl SparseTree {
             None => {
                 *self_container = SparseTree::from_batch(batch)?;
                 return Ok(());
-            },
+            }
 
             // otherwise, do operations on this tree
-            Some(tree) => tree
+            Some(tree) => tree,
         };
 
         // binary search to see if this node's key is in the batch, and to split
         // into left and right batches
-        let search = batch.binary_search_by(
-            |(key, _op)| key.cmp(&&tree.key[..])
-        );
+        let search = batch.binary_search_by(|(key, _op)| key.cmp(&&tree.key[..]));
         let (left_batch, right_batch) = match search {
             Ok(index) => {
                 // a key matches this node's key, apply op to this node
-                match batch[index].1 {
-                    Put(value) => tree.set_value(value),
+                match &batch[index].1 {
+                    Put(value) => tree.set_value(value.to_vec()),
                     Delete => {
                         SparseTree::remove(self_container, get_node)?;
                         SparseTree::apply(self_container, get_node, &batch[..index])?;
-                        return SparseTree::apply(self_container, get_node, &batch[index + 1..])
+                        return SparseTree::apply(self_container, get_node, &batch[index + 1..]);
                     }
                 };
 
@@ -206,7 +200,7 @@ impl SparseTree {
         &mut self,
         left: bool,
         get_node: &dyn GetNodeFn,
-        batch: &TreeBatch
+        batch: &TreeBatch,
     ) -> Result<()> {
         // return early if batch is empty
         if batch.is_empty() {
@@ -228,11 +222,11 @@ impl SparseTree {
 
     pub fn remove(
         self_container: &mut TreeContainer,
-        get_node: &dyn GetNodeFn
+        get_node: &dyn GetNodeFn,
     ) -> Result<Box<SparseTree>> {
         let tree = match self_container {
             None => unreachable!("cannot delete empty tree"),
-            Some(tree) => tree
+            Some(tree) => tree,
         };
 
         let has_left = tree.child_link(true).is_some();
@@ -277,11 +271,11 @@ impl SparseTree {
     pub fn remove_edge(
         self_container: &mut TreeContainer,
         get_node: &dyn GetNodeFn,
-        left: bool
+        left: bool,
     ) -> Result<TreeContainer> {
         let tree = match self_container {
             None => unreachable!("called edge on empty tree"),
-            Some(tree) => tree.as_mut()
+            Some(tree) => tree.as_mut(),
         };
 
         match tree.maybe_get_child(get_node, left)? {
@@ -289,14 +283,14 @@ impl SparseTree {
                 let mut tree_container = self_container.take();
 
                 // promote edge's child if it exists
-                let tree = tree_container.as_mut().unwrap(); 
+                let tree = tree_container.as_mut().unwrap();
                 if tree.maybe_get_child(get_node, !left)?.is_some() {
                     *self_container = tree.child_container_mut(!left).take();
                     tree.update_link(!left);
                 }
 
                 Ok(tree_container)
-            },
+            }
             Some(_) => {
                 let child = tree.child_container_mut(left);
                 let result = SparseTree::remove_edge(child, get_node, left);
@@ -331,17 +325,17 @@ impl SparseTree {
         tree: Option<&mut SparseTree>,
         get_node: &dyn GetNodeFn,
         key: &[u8],
-        f: &mut F
+        f: &mut F,
     ) -> Result<()> {
         fn traverse<F: FnMut(&Node)>(
             tree: Option<&mut SparseTree>,
             get_node: &dyn GetNodeFn,
             key: &[u8],
-            f: &mut F
+            f: &mut F,
         ) -> Result<()> {
             let tree = match tree {
                 None => return Ok(()),
-                Some(tree) => tree
+                Some(tree) => tree,
             };
 
             f(tree.node());
@@ -370,8 +364,7 @@ impl SparseTree {
 
     /// Compute child link and set on our node.
     pub fn update_link(&mut self, left: bool) {
-        let link = self.child_tree(left)
-            .map(|child| child.as_link());
+        let link = self.child_tree(left).map(|child| child.as_link());
         self.node.set_child(left, link);
     }
 
@@ -413,14 +406,11 @@ impl SparseTree {
         }
     }
 
-    fn maybe_rebalance(
-        self_container: &mut TreeContainer,
-        get_node: &dyn GetNodeFn
-    ) -> Result<()> {
+    fn maybe_rebalance(self_container: &mut TreeContainer, get_node: &dyn GetNodeFn) -> Result<()> {
         // unwrap self_container or return early if empty
         let tree = match self_container {
             None => return Ok(()),
-            Some(tree) => tree
+            Some(tree) => tree,
         };
 
         // return early if we don't need to balance
@@ -434,7 +424,7 @@ impl SparseTree {
         let left = balance_factor < 0;
         let child_balance_factor = match tree.maybe_get_child(get_node, left)? {
             None => unreachable!("child must exist"),
-            Some(child) => child.balance_factor()
+            Some(child) => child.balance_factor(),
         };
         // get container for child
         let child_container = tree.child_container_mut(left);
@@ -449,7 +439,8 @@ impl SparseTree {
 
         // do the rotation
         SparseTree::rotate(self_container, get_node, left)?;
-        let tree = self_container.as_mut()
+        let tree = self_container
+            .as_mut()
             .expect("container must not be empty");
 
         // rebalance recursively if necessary
@@ -465,16 +456,16 @@ impl SparseTree {
     fn rotate(
         self_container: &mut TreeContainer,
         get_node: &dyn GetNodeFn,
-        left: bool
+        left: bool,
     ) -> Result<()> {
         // take ownership of self. very inspiring.
-        let mut tree = self_container.take()
-            .expect("container must not be empty");
+        let mut tree = self_container.take().expect("container must not be empty");
 
         // take ownership of child
         tree.maybe_get_child(get_node, left)?;
         let child_container = tree.child_container_mut(left);
-        let mut child = child_container.take()
+        let mut child = child_container
+            .take()
             .expect("child container must not be empty");
 
         // also take grandchild (may be None)
@@ -530,22 +521,17 @@ impl fmt::Debug for SparseTree {
 
             if depth > 0 {
                 // draw ancestor's vertical lines
-                for &line in stack.iter().take(depth-1) {
-                    write!(
-                        f,
-                        "{}",
-                        if line { " │  " } else { "    " }
-                            .dimmed()
-                    ).unwrap();
+                for &line in stack.iter().take(depth - 1) {
+                    write!(f, "{}", if line { " │  " } else { "    " }.dimmed()).unwrap();
                 }
 
                 // draw our connecting line to parent
                 write!(
                     f,
                     "{}",
-                    if has_sibling_after { " ├" } else { " └" }
-                        .dimmed()
-                ).unwrap();
+                    if has_sibling_after { " ├" } else { " └" }.dimmed()
+                )
+                .unwrap();
             }
 
             let prefix = if depth == 0 {

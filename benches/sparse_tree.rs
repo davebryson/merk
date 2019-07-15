@@ -19,7 +19,7 @@ fn bench_batch_insert_2k(b: &mut test::Bencher) {
 
         let mut batch: Vec<TreeBatchEntry> = vec![];
         for key in keys.iter() {
-            batch.push((&key[..], TreeOp::Put(b"x")));
+            batch.push((&key[..], TreeOp::Put(b"x".to_vec())));
         }
 
         SparseTree::apply(
@@ -48,7 +48,7 @@ fn bench_batch_update_2k(b: &mut test::Bencher) {
 
         let mut batch: Vec<TreeBatchEntry> = vec![];
         for key in keys.iter() {
-            batch.push((&key[..], TreeOp::Put(b"x")));
+            batch.push((&key[..], TreeOp::Put(b"x".to_vec())));
         }
 
         SparseTree::apply(
@@ -69,7 +69,7 @@ fn bench_batch_update_2k(b: &mut test::Bencher) {
 
         let mut batch: Vec<TreeBatchEntry> = vec![];
         for key in keys.iter() {
-            batch.push((&key[..], TreeOp::Put(b"x")));
+            batch.push((&key[..], TreeOp::Put(b"x".to_vec())));
         }
 
         SparseTree::apply(
@@ -98,7 +98,7 @@ fn bench_batch_delete_2k(b: &mut test::Bencher) {
 
         let mut batch: Vec<TreeBatchEntry> = vec![];
         for key in keys.iter() {
-            batch.push((&key[..], TreeOp::Put(b"x")));
+            batch.push((&key[..], TreeOp::Put(b"x".to_vec())));
         }
 
         SparseTree::apply(

@@ -210,7 +210,7 @@ fn update_value() {
     let mut node = Node::new(b"abc", b"123");
     let original_kvh = node.kv_hash;
 
-    node.set_value(b"456");
+    node.set_value(b"456".to_vec());
     assert_eq!(node.value, b"456");
     assert_eq!(node.key, b"abc");
 

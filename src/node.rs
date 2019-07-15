@@ -180,9 +180,11 @@ impl Node {
         }
     }
 
+    // WAS:  pub fn set_value(&mut self, value: &[u8])
     #[inline]
-    pub fn set_value(&mut self, value: &[u8]) {
-        set_vec(&mut self.value, value);
+    pub fn set_value(&mut self, value: Vec<u8>) {
+        //set_vec(&mut self.value, value);
+        self.value = value;
         self.update_kv_hash();
     }
 
